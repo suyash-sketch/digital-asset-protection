@@ -1,0 +1,98 @@
+[
+  {
+    "filename": "video1.mp4",
+    "sha256": "b13b2f8f745e6d5dfb5d38ddbd796e65e05135f0b13e2bcb5726bfc36761acd9",
+    "global_hash": "8f3f833ecc16bef0ccf9710179e160641e00a7708991806c9f3ef4ef15837dcd",
+    "frame_sequence": [
+      "d1d594dbab222aca",
+      "c5d1b086cb3936c7",
+      "95812fb5b56b2196",
+      "a88d73aa2e556993",
+      "85956baaba571589",
+      "a080d4afef627635",
+      "bf83fc80f805701f",
+      "8f83ccbe8c717960",
+      "85a399cfa658da52",
+      "fca0839cdbebf010",
+      "c6193ba6b9d84927",
+      "c98dd6b798e26611",
+      "d0ac24fccbba1359",
+      "ccf115f6a32e2a15",
+      "8b9670e1f66b6078"
+    ],
+    "frame_count": 15,
+    "registered_at": "2026-04-05T18:01:15.044849Z"
+  },
+  {
+    "filename": "video1.mp4",
+    "sha256": "b13b2f8f745e6d5dfb5d38ddbd796e65e05135f0b13e2bcb5726bfc36761acd9",
+    "global_hash": "8f3f833ecc16bef0ccf9710179e160641e00a7708991806c9f3ef4ef15837dcd",
+    "frame_sequence": [
+      "d1d594dbab222aca",
+      "c5d1b086cb3936c7",
+      "95812fb5b56b2196",
+      "a88d73aa2e556993",
+      "85956baaba571589",
+      "a080d4afef627635",
+      "bf83fc80f805701f",
+      "8f83ccbe8c717960",
+      "85a399cfa658da52",
+      "fca0839cdbebf010",
+      "c6193ba6b9d84927",
+      "c98dd6b798e26611",
+      "d0ac24fccbba1359",
+      "ccf115f6a32e2a15",
+      "8b9670e1f66b6078"
+    ],
+    "frame_count": 15,
+    "registered_at": "2026-04-06T08:27:57.636185Z"
+  },
+  {
+    "filename": "video1.mp4",
+    "sha256": "b13b2f8f745e6d5dfb5d38ddbd796e65e05135f0b13e2bcb5726bfc36761acd9",
+    "global_hash": "8f3f833ecc16bef0ccf9710179e160641e00a7708991806c9f3ef4ef15837dcd",
+    "frame_sequence": [
+      "d1d594dbab222aca",
+      "c5d1b086cb3936c7",
+      "95812fb5b56b2196",
+      "a88d73aa2e556993",
+      "85956baaba571589",
+      "a080d4afef627635",
+      "bf83fc80f805701f",
+      "8f83ccbe8c717960",
+      "85a399cfa658da52",
+      "fca0839cdbebf010",
+      "c6193ba6b9d84927",
+      "c98dd6b798e26611",
+      "d0ac24fccbba1359",
+      "ccf115f6a32e2a15",
+      "8b9670e1f66b6078"
+    ],
+    "frame_count": 15,
+    "registered_at": "2026-04-06T16:24:50.418093Z"
+  },
+  {
+    "filename": "video1.mp4",
+    "sha256": "b13b2f8f745e6d5dfb5d38ddbd796e65e05135f0b13e2bcb5726bfc36761acd9",
+    "global_hash": "8f3f833ecc16bef0ccf9710179e160641e00a7708991806c9f3ef4ef15837dcd",
+    "frame_sequence": [
+      "d1d594dbab222aca",
+      "c5d1b086cb3936c7",
+      "95812fb5b56b2196",
+      "a88d73aa2e556993",
+      "85956baaba571589",
+      "a080d4afef627635",
+      "bf83fc80f805701f",
+      "8f83ccbe8c717960",
+      "85a399cfa658da52",
+      "fca0839cdbebf010",
+      "c6193ba6b9d84927",
+      "c98dd6b798e26611",
+      "d0ac24fccbba1359",
+      "ccf115f6a32e2a15",
+      "8b9670e1f66b6078"
+    ],
+    "frame_count": 15,
+    "registered_at": "2026-04-06T16:54:44.243182Z"
+  }
+]

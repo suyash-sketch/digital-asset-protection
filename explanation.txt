@@ -1,0 +1,328 @@
+================================================================================
+    DIGITAL ASSET PROTECTION - IMAGE PIRACY DETECTION
+    Complete Explanation of Changes & How the Code Works
+================================================================================
+
+
+================================================================================
+PART 1: WHAT DID THE EARLIER CODE DO?
+================================================================================
+
+The earlier code used a technique called "Perceptual Hashing" (phash) from the
+imagehash library to detect if a suspect image was pirated from an original.
+
+It worked in TWO steps:
+
+STEP 1 - Global Hash Pre-Filter (Fast Check):
+    - It converted both images to grayscale.
+    - It computed a single "phash" fingerprint for each full image.
+    - It compared the two fingerprints by calculating the "Hamming distance"
+      (how many bits are different between the two hashes).
+    - If the distance was greater than 40, it immediately declared the suspect
+      as "ORIGINAL CONTENT" and stopped — meaning it decided the images were
+      too different to even bother checking further.
+
+STEP 2 - Tile-Based Matching (Detailed Check):
+    - If the global check passed (distance <= 40), it moved to a deeper check.
+    - It divided both images into small square tiles (256x256 pixels) using a
+      sliding window that moved 64 pixels at a time.
+    - It filtered out "boring" tiles (flat colors, low detail) using standard
+      deviation of pixel values.
+    - It computed a phash for each remaining tile.
+    - It compared every suspect tile against every original tile.
+    - If a suspect tile's hash was within a distance of 10 from any original
+      tile, it counted as a "match".
+    - It then calculated:
+        * Suspect Coverage  = (matched suspect tiles / total suspect tiles) x 100
+        * Original Coverage = (matched original tiles / total original tiles) x 100
+    - If BOTH coverages were above 30%, it declared "PIRACY DETECTED".
+    - Otherwise, it said "ORIGINAL CONTENT".
+
+
+================================================================================
+PART 2: WHAT WAS THE PROBLEM?
+================================================================================
+
+The problem showed up when comparing:
+    - f1.jpg (original) — a close-up photo of a red Ferrari F1 car
+    - f1_copy.jpg (pirated) — a cropped version of a similar/same Ferrari photo
+
+The code returned "ORIGINAL CONTENT" instead of "PIRACY DETECTED".
+
+But when comparing:
+    - f1.jpg (original) vs f1_2.jpg (a completely different blue Alpine F1 car)
+    
+It correctly returned "ORIGINAL CONTENT".
+
+So the code worked for completely different images but FAILED to detect piracy
+when the suspect was a cropped copy.
+
+WHY DID IT FAIL? There were TWO root causes:
+
+ROOT CAUSE 1 - The Global Hash Pre-Filter Was Too Aggressive:
+    When you crop an image, the global phash changes dramatically. Here's why:
+    phash works by resizing the ENTIRE image down to a tiny grid (like 32x32),
+    then applying a DCT (math transform) to that grid. When you crop an image,
+    you remove portions of it, so the tiny grid now represents completely
+    different content proportions. The global hash distance between the original
+    and its crop came out as 138 — way above the threshold of 40.
+    
+    So the code said "too different" and stopped checking at Step 1 itself.
+    The tile matching (Step 2) never even got a chance to run.
+
+ROOT CAUSE 2 - Fixed Tile Grid Doesn't Align After Cropping:
+    Even if we removed the global filter, the tile matching would still fail.
+    Here's why: tiles are cut on a fixed grid starting from position (0,0).
+    When you crop an image, the same visual content shifts to different pixel
+    positions. A region that was at position (200, 100) in the original might
+    now be at position (50, 30) in the crop. Since the step size is 64 pixels,
+    and the crop offset is unlikely an exact multiple of 64, the tiles from
+    the two images never align exactly. This means the phash of "corresponding"
+    tiles will be different enough to not match within the threshold of 10.
+
+    Our diagnostic test confirmed this: the MINIMUM hash distance between any
+    pair of tiles from the original and the crop was around 90-110, far above
+    the matching threshold of 10. This proves the images, while visually
+    showing the same car, have different enough pixel-level patterns that
+    pure hash-based tile matching cannot detect the similarity.
+
+
+================================================================================
+PART 3: WHAT APPROACH DID WE USE TO FIX IT?
+================================================================================
+
+We realized that perceptual hashing alone is NOT enough to detect all forms of
+piracy. Hashing works well for:
+    - Exact copies
+    - Slightly compressed versions
+    - Minor color adjustments
+
+But hashing FAILS for:
+    - Cropped copies
+    - Re-photographed content
+    - Screenshots of the original
+    - Same content from a slightly different angle or framing
+
+To handle these cases, we needed a FEATURE-BASED approach. Instead of comparing
+raw pixel patterns (which is what hashing does), we needed to detect and compare
+distinctive visual features (corners, edges, unique patterns) that remain
+recognizable even after cropping, resizing, or re-framing.
+
+THE SOLUTION: A 3-Layer Detection System
+
+    Layer 1: Global Perceptual Hash (kept from original — still useful for
+             catching exact copies quickly)
+    
+    Layer 2: Tile-Based Hash Matching (kept from original — catches direct
+             pixel-level crops of the exact same image file)
+    
+    Layer 3: ORB Feature Matching (NEW — this is what solved the problem)
+             ORB stands for "Oriented FAST and Rotated BRIEF". It's a computer
+             vision algorithm from OpenCV that detects distinctive visual
+             keypoints in an image and creates a descriptor for each one.
+             These keypoints are things like corners, edges, and unique
+             patterns that can be reliably detected even if the image is
+             cropped, rotated, or resized.
+
+WHY ORB WORKS WHERE HASHING FAILED:
+    - Hashing compares "what does the whole tile look like as a pattern?"
+    - ORB compares "are there specific distinctive points that appear in both?"
+    
+    Think of it like this: If someone crops a photo of the Eiffel Tower,
+    hashing would say "the pixel pattern changed" and might miss it. But ORB
+    would say "I can still see the same distinctive corners and edges of the
+    tower structure in both images" and catch it.
+
+    For our Ferrari test case:
+    - Different car (Alpine):   ORB match ratio = 0.2%  → No piracy
+    - Cropped Ferrari copy:     ORB match ratio = 22.2% → Piracy detected!
+
+
+================================================================================
+PART 4: HOW DOES THE FINAL CODE WORK? (Line-by-Line Explanation)
+================================================================================
+
+The code is organized into 4 sections:
+
+────────────────────────────────────────────────────────────────────────────────
+SECTION 1: LAYER 1 — Global Perceptual Hash (Lines 26-35)
+────────────────────────────────────────────────────────────────────────────────
+
+Function: global_hash_check(original_path, suspect_path)
+
+What it does:
+    1. Opens both images and converts them to grayscale ('L' mode).
+    2. Computes a phash with hash_size=16 for each image.
+       (hash_size=16 means the hash is 16x16 = 256 bits, which is more
+       detailed than the default 8x8 = 64 bits, giving better discrimination)
+    3. Calculates the Hamming distance between the two hashes.
+    4. Returns this distance.
+
+A small distance (say <= 15) means the images are nearly identical.
+A large distance (say > 100) means they look very different overall.
+
+
+────────────────────────────────────────────────────────────────────────────────
+SECTION 2: LAYER 2 — Tile-Based Hash Matching (Lines 42-89)
+────────────────────────────────────────────────────────────────────────────────
+
+Function: is_informative(tile_img, min_std=15)
+    - Takes a tile image and checks if it has enough visual detail.
+    - Computes the standard deviation of pixel values.
+    - If std > 15, the tile is "informative" (has texture, edges, etc.)
+    - If std <= 15, the tile is probably a flat color or blank area — skip it.
+
+Function: get_tile_hashes(image_path, tile_size=128, step=32, normalize_width=800)
+    1. Opens the image in grayscale.
+    2. Resizes it so the width is 800 pixels (keeps aspect ratio).
+       This normalization ensures images of different sizes are compared fairly.
+    3. Slides a 128x128 window across the image, moving 32 pixels at a time.
+       (32-pixel step means tiles overlap heavily, increasing the chance that
+       a tile from the crop will align with some tile from the original)
+    4. For each tile position, crops out the tile.
+    5. If the tile is informative, computes its phash (hash_size=8) and stores it.
+    6. Returns the list of all tile hashes.
+
+Function: tile_hash_check(original_path, suspect_path, threshold=10)
+    1. Gets tile hashes for both images.
+    2. For each suspect tile, checks if ANY original tile has a hash distance
+       <= 10 from it. If yes, it's a "match".
+    3. For each original tile, checks if ANY suspect tile matches it.
+    4. Computes:
+       - Suspect coverage = % of suspect tiles that matched something in original
+       - Original coverage = % of original tiles that matched something in suspect
+    5. Returns both coverage values.
+
+
+────────────────────────────────────────────────────────────────────────────────
+SECTION 3: LAYER 3 — ORB Feature Matching (Lines 96-176) [THE KEY ADDITION]
+────────────────────────────────────────────────────────────────────────────────
+
+Function: orb_feature_check(original_path, suspect_path, normalize_width=800)
+
+This is the most important part. Here's what happens step by step:
+
+STEP 1 — Load and Normalize (Lines 108-125):
+    - Loads both images in grayscale using OpenCV (cv2).
+    - Resizes both to 800 pixels wide (maintaining aspect ratio).
+    - This ensures consistent feature detection regardless of original size.
+
+STEP 2 — Detect Keypoints (Lines 127-132):
+    - Creates an ORB detector configured to find up to 2000 features.
+    - Runs detectAndCompute() on both images.
+    - This finds "keypoints" — distinctive locations in the image like corners,
+      edge intersections, and unique patterns.
+    - For each keypoint, it computes a "descriptor" — a 256-bit binary string
+      that describes what that keypoint looks like.
+    
+    Example: If there's a sharp corner where the car's wing meets the body,
+    ORB will detect that corner and create a descriptor that captures the
+    pattern of pixels around it.
+
+STEP 3 — Match Features (Lines 138-150):
+    - Uses BFMatcher (Brute Force Matcher) with Hamming distance to find the
+      two most similar keypoints in image 2 for each keypoint in image 1.
+    - Applies "Lowe's Ratio Test": For each keypoint in image 1, if its best
+      match in image 2 is significantly better than its second-best match
+      (distance < 0.75 * second_best_distance), then it's a "good match".
+    
+    Why the ratio test? If a keypoint's best and second-best matches are
+    similarly close, it means the keypoint is ambiguous and might be a false
+    match. We only keep matches where the best option is clearly superior.
+
+STEP 4 — Geometric Verification with RANSAC (Lines 152-165):
+    - If we have at least 8 good matches, we do a final verification.
+    - We use findHomography with RANSAC to check if the matched points make
+      geometric sense — i.e., if there's a consistent spatial transformation
+      (rotation, scaling, translation) that maps the points from image 1 to
+      their matches in image 2.
+    - RANSAC (Random Sample Consensus) automatically filters out "outlier"
+      matches that don't fit the geometric pattern.
+    - The remaining matches are called "inliers" — these are the truly
+      reliable, geometrically verified matches.
+    
+    Why is this important? Without geometric verification, we might get many
+    false matches between unrelated images. RANSAC ensures that the matches
+    actually represent the same physical scene viewed differently.
+
+STEP 5 — Compute Match Ratio (Lines 167-176):
+    - match_ratio = inliers / min(features_in_img1, features_in_img2)
+    - This gives us a percentage showing how much visual content is shared.
+    - Returns this ratio (0.0 to 1.0).
+
+
+────────────────────────────────────────────────────────────────────────────────
+SECTION 4: VERDICT ENGINE (Lines 183-249)
+────────────────────────────────────────────────────────────────────────────────
+
+Function: check_for_piracy(original_path, suspect_path)
+
+This is the main function that ties all three layers together.
+It runs the layers in order and makes a decision:
+
+CHECK 1 — Global Hash (Layer 1):
+    If global_dist <= 15 → "PIRACY DETECTED"
+    (The images are near-identical copies)
+
+CHECK 2 — Tile Matching (Layer 2):
+    If suspect_coverage > 40% OR original_coverage > 40% → "PIRACY DETECTED"
+    (Direct pixel-level crop detected)
+    
+    Note: We use OR instead of AND here (unlike the old code which used AND).
+    This is because in a crop, suspect coverage will be high (the crop content
+    exists in the original) but original coverage will be low (the crop is
+    only a small part of the original).
+
+CHECK 3 — ORB Features (Layer 3):
+    If orb_ratio > 0.15 (15%) → "PIRACY DETECTED"
+    (Significant visual feature overlap — catches crops, re-photos, etc.)
+
+CHECK 4 — Combined Weak Signals:
+    Sometimes no single layer is confident enough alone, but together they
+    indicate piracy:
+    
+    a) If global_dist < 80 AND orb_ratio > 0.08 → "PIRACY DETECTED"
+       (Hash is somewhat close AND some features match)
+    
+    b) If tile_coverage > 20% AND orb_ratio > 0.05 → "PIRACY DETECTED"
+       (Some tiles match AND some features match)
+
+CHECK 5 — Default:
+    If none of the above conditions are met → "ORIGINAL CONTENT"
+    (No significant similarity found across any layer)
+
+
+================================================================================
+PART 5: RESULTS COMPARISON
+================================================================================
+
+BEFORE (Old Code):
+    f1.jpg vs f1_2.jpg (different car)    → ORIGINAL CONTENT  ✓ Correct
+    f1.jpg vs f1_copy.jpg (cropped copy)  → ORIGINAL CONTENT  ✗ WRONG
+
+AFTER (New Code):
+    f1.jpg vs f1_2.jpg (different car)    → ORIGINAL CONTENT  ✓ Correct
+    f1.jpg vs f1_copy.jpg (cropped copy)  → PIRACY DETECTED   ✓ Correct
+
+The key numbers for the cropped copy:
+    - Global hash distance: 138 (too high for hash-only detection)
+    - Tile coverage: 0% / 0% (tiles don't align after cropping)
+    - ORB match ratio: 22.2% (CAUGHT by feature matching!)
+
+
+================================================================================
+PART 6: DEPENDENCIES
+================================================================================
+
+The code requires these Python libraries:
+    pip install Pillow imagehash numpy opencv-python
+
+    - Pillow (PIL): Image loading and manipulation
+    - imagehash: Perceptual hash computation
+    - numpy: Numerical operations (arrays, statistics)
+    - opencv-python (cv2): ORB feature detection and matching
+
+
+================================================================================
+END OF EXPLANATION
+================================================================================
