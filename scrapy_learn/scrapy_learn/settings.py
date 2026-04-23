@@ -14,12 +14,32 @@ NEWSPIDER_MODULE = "scrapy_learn.spiders"
 
 ADDONS = {}
 
+# PLAYWRIGHT_BROWSER_TYPE = "firefox"
+# PLAYWRIGHT_LAUNCH_OPTIONS = {
+#     "channel": "/usr/bin/firefox",
+#     "headless": True,
+# }
+
+# Force Scrapy to use the system's native threaded DNS resolver
+DNS_RESOLVER = "scrapy.resolver.CachingThreadedResolver"
+
+# 1. Route HTTP/HTTPS requests through Playwright
+DOWNLOAD_HANDLERS = {
+    "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+    "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+}
+
+# 2. Required reactor for Playwright's async operations
+TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
+
+# 3. Optional but highly recommended: Set a longer Playwright timeout (default is usually too short for IG)
+PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT = 60000
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = "scrapy_learn (+http://www.yourdomain.com)"
 
 # Obey robots.txt rules
-ROBOTSTXT_OBEY = True
+ROBOTSTXT_OBEY = False
 
 # Concurrency and throttling settings
 #CONCURRENT_REQUESTS = 16
