@@ -62,53 +62,61 @@ class InstagramSpider(scrapy.Spider):
             )
 
     def parse_video_page(self, response):
-        self.logger.info(f"Checking for video on: {response.url}")
-        video_src = None
+        self.logger.info(f"Checking for media on: {response.url}")
+        media_url = None
+        is_video = False
         
-        # 1. Try Meta Tag (Fastest, if it exists)
+        # --- 1. Check for Video ---
         meta_vid = response.css('meta[property="og:video"]::attr(content)').get()
         if meta_vid and not meta_vid.startswith('blob:'):
-            video_src = meta_vid
+            media_url = meta_vid
+            is_video = True
             
-        # 2. Try Regex on the raw JSON (The most reliable for Reels!)
-        if not video_src:
+        if not media_url:
             match = re.search(r'"video_url":"([^"]+)"', response.text)
             if match:
-                video_src = match.group(1).replace('\\/', '/')
-                self.logger.info("Found video URL via hidden JSON data!")
-                
-        # 3. Try standard Video tag (Fallback)
-        if not video_src:
-            vid_tag = response.css('video::attr(src)').get()
-            if vid_tag and not vid_tag.startswith('blob:'):
-                video_src = vid_tag
-                
-        # 4. Try Video Source tag (Fallback)
-        if not video_src:
-            src_tag = response.css('video source::attr(src)').get()
-            if src_tag and not src_tag.startswith('blob:'):
-                video_src = src_tag
+                media_url = match.group(1).replace('\\/', '/')
+                is_video = True
 
-        # Final check
-        if not video_src:
-            self.logger.info(f"No usable video found on {response.url}. It is either a photo or fully blob-protected.")
+        # --- 2. Fallback to High-Res Image (If no video, or if it's blob-protected) ---
+        if not media_url:
+            self.logger.info("No direct video found (Photo post or Blob-protected). Grabbing high-res photo...")
+            
+            # Try to get the highest quality OpenGraph image meta tag
+            meta_img = response.css('meta[property="og:image"]::attr(content)').get()
+            if meta_img:
+                media_url = meta_img
+        
+        # Absolute last resort fallback for images
+        if not media_url:
+            img_tag = response.css('article img::attr(src)').get()
+            if img_tag and not img_tag.startswith('data:image'):
+                media_url = img_tag
+
+        if not media_url:
+            self.logger.warning(f"Could not extract any downloadable media from {response.url}")
             return
             
-        # --- Download the .mp4 file ---
-        url_path = urllib.parse.urlparse(video_src).path
+        # --- 3. Download the Media ---
+        url_path = urllib.parse.urlparse(media_url).path
         filename = url_path.split("/")[-1]
         
-        if not filename.endswith('.mp4'):
+        # Assign proper extensions and folders based on what we found
+        if is_video and not filename.endswith('.mp4'):
             filename += '.mp4'
+        elif not is_video and not filename.endswith(('.jpg', '.png', '.webp')):
+            filename += '.jpg'
             
-        path = Path("videos") / filename
+        folder_name = "videos" if is_video else "images"
+        path = Path(folder_name) / filename
         path.parent.mkdir(parents=True, exist_ok=True)
         
         try:
-            req = urllib.request.Request(video_src, headers=self.custom_headers)
-            with urllib.request.urlopen(req) as vid_response, open(path, "wb") as f:
-                f.write(vid_response.read())
+            req = urllib.request.Request(media_url, headers=self.custom_headers)
+            with urllib.request.urlopen(req) as media_response, open(path, "wb") as f:
+                f.write(media_response.read())
             
-            self.logger.info(f"Saved VIDEO successfully: {filename}")
+            # This logs either "Saved VIDEO..." or "Saved IMAGE..."
+            self.logger.info(f"Saved {folder_name[:-1].upper()} successfully: {filename}")
         except Exception as e:
-            self.logger.error(f"Failed to download video {filename}: {e}")
+            self.logger.error(f"Failed to download {filename}: {e}")
