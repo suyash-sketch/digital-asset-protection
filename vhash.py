@@ -670,8 +670,8 @@ if __name__ == "__main__":
     # ──────────────────────────────────────────────────────────────────────────
 
     # Test 1: Exact / near-exact copy → expect PIRACY (L1 catches it)
-    print("\n--- TEST 1: Near-exact copy (expect PIRACY) ---")
-    check_video_for_piracy("video1.mp4", "video1 copy.mp4")
+    # print("\n--- TEST 1: Near-exact copy (expect PIRACY) ---")
+    # check_video_for_piracy("video1.mp4", "video1 copy.mp4")
 
     # # Test 2: Unedited highlight clip → expect PIRACY (L2a catches it)
     # print("\n--- TEST 2: Unedited clip from original (expect PIRACY) ---")
@@ -687,5 +687,5 @@ if __name__ == "__main__":
 
     # Test 5: Full registry flow
     # print("\n--- TEST 5: Registry scan ---")
-    register_video("video1.mp4")
-    check_against_registry("video1_reorder.mp4")
+    # register_video("video1.mp4")
+    # check_against_registry("video1_reorder.mp4")
