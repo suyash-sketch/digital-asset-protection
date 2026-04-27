@@ -4,3 +4,9 @@
    Local Path: E:\Solution_Challenge\scrapy_learn\videos\AQM8khCQouzOi40DlBi6mk0XenR0CfBNP8TQEAueDSvVmh3anWRpM0onlEiM-zFnUgh6v_ldB6xID-yl9jHE99FgHlUqHDEE9m2oNpk.mp4
    Source URL: Unknown
 
+[2026-04-27 23:26:41] 🚨 PIRATED VIDEO DETECTED
+   Suspect File: AQM8khCQouzOi40DlBi6mk0XenR0CfBNP8TQEAueDSvVmh3anWRpM0onlEiM-zFnUgh6v_ldB6xID-yl9jHE99FgHlUqHDEE9m2oNpk.mp4
+   Matched Asset: video1.mp4
+   Local Path: E:\Solution_Challenge\scrapy_learn\videos\AQM8khCQouzOi40DlBi6mk0XenR0CfBNP8TQEAueDSvVmh3anWRpM0onlEiM-zFnUgh6v_ldB6xID-yl9jHE99FgHlUqHDEE9m2oNpk.mp4
+   Source URL: Unknown
+
